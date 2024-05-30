@@ -33,6 +33,7 @@ use crate::rt::bounds::Http2ClientConnExec;
 use crate::upgrade::Upgraded;
 use crate::{Request, Response};
 use h2::client::ResponseFuture;
+use tracing::{Instrument, Span};
 
 type ClientRx<B> = crate::client::dispatch::Receiver<Request<B>, Response<IncomingBody>>;
 
@@ -143,8 +144,10 @@ where
     E: Http2ClientConnExec<B, T> + Unpin,
     B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
+
+    let span = tracing::debug_span!(parent: None, "conn_task");
     let (h2_tx, mut conn) = new_builder(config)
-        .handshake::<_, SendBuf<B::Data>>(Compat::new(io))
+        .handshake::<_, SendBuf<B::Data>>(Compat::new(io)).instrument(span)
         .await
         .map_err(crate::Error::new_h2)?;
 
